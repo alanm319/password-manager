@@ -1,3 +1,4 @@
 main
 .vscode/
-key.bin
+data/
+build/
