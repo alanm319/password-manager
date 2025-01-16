@@ -3,7 +3,7 @@ CXX = clang++
 
 # Compiler flags
 CXXFLAGS = -std=c++17 -Iinclude $(shell pkg-config --cflags libsodium)
-LDFLAGS  = $(shell pkg-config --libs-only-L libsodium)
+LDFLAGS  = $(shell pkg-config --libs-only-L libsodium) -lsqlite3
 LDLIBS   = $(shell pkg-config --libs-only-l libsodium)
 
 # source and target
@@ -20,6 +20,7 @@ $(TARGET): $(OBJECTS)
 
 # compile the source files to .o files
 build/%.o: src/%.cpp
+	mkdir -p build
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 clean:

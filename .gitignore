@@ -2,3 +2,4 @@ password_manager
 .vscode/
 data/
 build/
+*.db
