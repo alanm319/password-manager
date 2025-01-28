@@ -1,120 +1,140 @@
 #include "DatabaseManager.hpp"
-#include <iostream>
 #include <sqlite3.h>
+#include <stdexcept>
+#include <iostream>
+#include <vector>
 
-DatabaseManager::DatabaseManager(const std::string db_name) : db_name_(db_name) {}
+DatabaseManager::DatabaseManager(const std::string db_name) : db(nullptr) {
+    if (sqlite3_open(db_name.c_str(), &db) != SQLITE_OK) {
+        throw std::runtime_error("Failed to open database: " + std::string(sqlite3_errmsg(db)));
+    }
+}
 
 DatabaseManager::~DatabaseManager() {
     close_db();
 }
 
 bool DatabaseManager::init_db() {
-    sqlite3* db = nullptr;
-    char* err_msg = nullptr;
-
-    // Open the database
-    int rc = sqlite3_open(db_name_.c_str(), &db);
-    if (rc != SQLITE_OK) {
-        std::string error_message = "Can't open database: " + std::string(sqlite3_errmsg(db));
-        if (db) sqlite3_close(db);
-        throw std::runtime_error(error_message);
-    }
-
-    // SQL to create the table
-    const char* create_table_sql = R"(
+    const std::string createTableQuery = R"(
         CREATE TABLE IF NOT EXISTS entries (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             website TEXT NOT NULL,
+            username TEXT NOT NULL,
             password TEXT NOT NULL
         );
     )";
 
-    // Execute the SQL statement
-    rc = sqlite3_exec(db, create_table_sql, nullptr, nullptr, &err_msg);
-    if (rc != SQLITE_OK) {
-        std::string error_message = "Can't create table: " + std::string(err_msg ? err_msg : "Unknown error");
-        if (err_msg) sqlite3_free(err_msg);  // Free error message memory
-        sqlite3_close(db);                   // Ensure the database handle is closed
-        throw std::runtime_error(error_message);
+    char* errMsg = nullptr;
+    if (sqlite3_exec(db, createTableQuery.c_str(), nullptr, nullptr, &errMsg) != SQLITE_OK) {
+        std::cerr << "SQL Error: " << errMsg << std::endl;
+        sqlite3_free(errMsg);
+        return false;
     }
-
-    std::cout << "Successfully initialized database." << std::endl;
-
-    // Close the database
-    sqlite3_close(db);
     return true;
 }
 
- void DatabaseManager::add_entry(const std::string& website, const std::string& username,const std::string& password) {
-    sqlite3* db;
-    sqlite3_stmt* stmt;
+void DatabaseManager::add_entry(const std::string& website, const std::string& username, const std::string& password) {
+    const std::string insertQuery = R"(
+        INSERT INTO entries (website, username, password) VALUES (?, ?, ?);
+    )";
 
-    int rc = sqlite3_open(db_name_.c_str(), &db);
-    if (rc != SQLITE_OK) {
-        throw std::runtime_error("Cannot open db: " + std::string(sqlite3_errmsg(db)));
-    }
-    std::cout << "1"<<std::endl;
-    const char* insert_sql = "INSERT INTO entries (website, username, password) VALUES (?, ?, ?);";
-    rc = sqlite3_prepare_v2(db, insert_sql, -1, &stmt, nullptr);
-    std::cout << "Preparing SQL statement: " << insert_sql << std::endl;
-    if (rc != SQLITE_OK) {
-        sqlite3_close(db);
+    sqlite3_stmt* stmt;
+    if (sqlite3_prepare_v2(db, insertQuery.c_str(), -1, &stmt, nullptr) != SQLITE_OK) {
         throw std::runtime_error("Failed to prepare statement: " + std::string(sqlite3_errmsg(db)));
     }
-    
-    sqlite3_bind_text(stmt, 1, website.c_str(), -1, SQLITE_STATIC);
-    sqlite3_bind_text(stmt, 1, username.c_str(), -1, SQLITE_STATIC);
-    sqlite3_bind_text(stmt, 1, password.c_str(), -1, SQLITE_STATIC);
 
-    rc = sqlite3_step(stmt);
-    if (rc != SQLITE_DONE) {
+    if (sqlite3_bind_text(stmt, 1, website.c_str(), -1, SQLITE_TRANSIENT) != SQLITE_OK ||
+        sqlite3_bind_text(stmt, 2, username.c_str(), -1, SQLITE_TRANSIENT) != SQLITE_OK ||
+        sqlite3_bind_text(stmt, 3, password.c_str(), -1, SQLITE_TRANSIENT) != SQLITE_OK) {
         sqlite3_finalize(stmt);
-        sqlite3_close(db);
-        throw std::runtime_error("Failed to prepapre statement: "+ std::string(sqlite3_errmsg(db)));
+        throw std::runtime_error("Failed to bind values to statement: " + std::string(sqlite3_errmsg(db)));
     }
 
-    std::cout << "Saved entry to db" << std::endl;
+    if (sqlite3_step(stmt) != SQLITE_DONE) {
+        sqlite3_finalize(stmt);
+        throw std::runtime_error("Failed to execute statement: " + std::string(sqlite3_errmsg(db)));
+    }
 
     sqlite3_finalize(stmt);
-    sqlite3_close(db);
 }
 
 std::vector<Entry> DatabaseManager::get_entry(const std::string& website) {
-    sqlite3* db;
+    const std::string selectQuery = R"(
+        SELECT website, username, password FROM entries WHERE website = ?;
+    )";
+
     sqlite3_stmt* stmt;
-    std::vector<Entry> entries;
-
-    int rc = sqlite3_open(db_name_.c_str(), &db);
-    if (rc != SQLITE_OK) {
-        throw std::runtime_error("Cannot open db:" + std::string(sqlite3_errmsg(db)));
-    }
-
-    const char* query_sql = "SELECT service, username, password FROM entries WHERE service = ?;";
-    rc = sqlite3_prepare_v2(db, query_sql, -1, &stmt, nullptr);
-    if (rc != SQLITE_OK) {
-        sqlite3_close(db);
+    if (sqlite3_prepare_v2(db, selectQuery.c_str(), -1, &stmt, nullptr) != SQLITE_OK) {
         throw std::runtime_error("Failed to prepare statement: " + std::string(sqlite3_errmsg(db)));
     }
 
-    sqlite3_bind_text(stmt, 1, website.c_str(), -1, SQLITE_STATIC);
-
-    while (sqlite3_step(stmt) == SQLITE_ROW) {
-        Entry ent;
-        ent.website = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
-        ent.website = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
-        ent.website = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
-        entries.push_back(ent);
+    if (sqlite3_bind_text(stmt, 1, website.c_str(), -1, SQLITE_TRANSIENT) != SQLITE_OK) {
+        sqlite3_finalize(stmt);
+        throw std::runtime_error("Failed to bind values to statement: " + std::string(sqlite3_errmsg(db)));
     }
 
-    if (entries.empty()) {
-        throw std::runtime_error("No credentials found for website: " + website);
+    std::vector<Entry> results;
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        Entry entry;
+        entry.website = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
+        entry.username = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
+        entry.password = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
+        results.push_back(entry);
     }
 
     sqlite3_finalize(stmt);
-    sqlite3_close(db);
-    return entries;
+    return results;
+}
+
+std::vector<Entry> DatabaseManager::get_all_entries() {
+    const std::string selectAllQuery = R"(
+        SELECT website, username, password FROM entries;
+    )";
+
+    sqlite3_stmt* stmt;
+    if (sqlite3_prepare_v2(db, selectAllQuery.c_str(), -1, &stmt, nullptr) != SQLITE_OK) {
+        throw std::runtime_error("Failed to prepare statement: " + std::string(sqlite3_errmsg(db)));
+    }
+
+    std::vector<Entry> results;
+    while (sqlite3_step(stmt) == SQLITE_ROW) {
+        Entry entry;
+        entry.website = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 0));
+        entry.username = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
+        entry.password = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 2));
+        results.push_back(entry);
+    }
+
+    sqlite3_finalize(stmt);
+    return results;
+}
+
+void DatabaseManager::delete_entry(const std::string& website) {
+    const std::string deleteQuery = R"(
+        DELETE FROM credentials WHERE website = ?;
+    )";
+
+    sqlite3_stmt* stmt;
+    if (sqlite3_prepare_v2(db, deleteQuery.c_str(), -1, &stmt, nullptr) != SQLITE_OK) {
+        throw std::runtime_error("Failed to prepare delete statement: " + std::string(sqlite3_errmsg(db)));
+    }
+
+    if (sqlite3_bind_text(stmt, 1, website.c_str(), -1, SQLITE_TRANSIENT) != SQLITE_OK) {
+        sqlite3_finalize(stmt);
+        throw std::runtime_error("Failed to bind values to delete statement: " + std::string(sqlite3_errmsg(db)));
+    }
+
+    if (sqlite3_step(stmt) != SQLITE_DONE) {
+        sqlite3_finalize(stmt);
+        throw std::runtime_error("Failed to execute delete statement: " + std::string(sqlite3_errmsg(db)));
+    }
+
+    sqlite3_finalize(stmt);
 }
 
 void DatabaseManager::close_db() {
-
+    if (db) {
+        sqlite3_close(db);
+        db = nullptr;
+    }
 }

@@ -2,6 +2,7 @@
 #define DB_HPP
 
 #include <string>
+#include <sqlite3.h>
 
 struct Entry {
     std::string website;
@@ -17,8 +18,10 @@ public:
     bool init_db();
     void add_entry(const std::string& website, const std::string& username, const std::string& password);
     std::vector<Entry> get_entry(const std::string& website);
+    std::vector<Entry> get_all_entries();
+    void delete_entry(const std::string& website);
 private: 
-    std::string db_name_;
+    sqlite3* db;
     void close_db();
 };
 

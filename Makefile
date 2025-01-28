@@ -9,7 +9,7 @@ LDLIBS   = $(shell pkg-config --libs-only-l libsodium)
 # source and target
 SRC    = $(wildcard src/*.cpp)
 OBJECTS = $(patsubst src/%.cpp, build/%.o, $(SRC))
-TARGET = password_manager
+TARGET = build/password_manager
 
 # build
 all: $(TARGET)
@@ -24,4 +24,4 @@ build/%.o: src/%.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 clean:
-	rm -f $(TARGET)
+	rm -f build/password_manager build/*.o

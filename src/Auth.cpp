@@ -60,7 +60,7 @@ void Auth::first_time_setup() {
 
     sodium_memzero(&password[0], password.size());
 
-    // generate a noce for dek encryption
+    // generate a nonce for dek encryption
     std::vector<unsigned char> nonce(crypto_secretbox_NONCEBYTES);
     randombytes_buf(nonce.data(), nonce.size());
 
