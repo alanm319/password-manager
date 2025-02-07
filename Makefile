@@ -2,9 +2,9 @@
 CXX = clang++
 
 # Compiler flags
-CXXFLAGS = -std=c++17 -Iinclude $(shell pkg-config --cflags libsodium)
-LDFLAGS  = $(shell pkg-config --libs-only-L libsodium) -lsqlite3
-LDLIBS   = $(shell pkg-config --libs-only-l libsodium)
+CXXFLAGS = -std=c++20 -Wall -Wextra -Iinclude $(shell pkg-config --cflags sqlcipher libsodium)
+LDFLAGS  = $(shell pkg-config --libs-only-L sqlcipher libsodium)
+LDLIBS   = $(shell pkg-config --libs-only-l sqlcipher libsodium)
 
 # source and target
 SRC    = $(wildcard src/*.cpp)
@@ -20,7 +20,6 @@ $(TARGET): $(OBJECTS)
 
 # compile the source files to .o files
 build/%.o: src/%.cpp
-	mkdir -p build
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 clean:

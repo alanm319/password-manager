@@ -1,13 +1,22 @@
+#define SQLITE_HAS_CODEC
 #include "DatabaseManager.hpp"
-#include <sqlite3.h>
+#include "sqlite3.h"
 #include <stdexcept>
 #include <iostream>
 #include <vector>
 
-DatabaseManager::DatabaseManager(const std::string db_name) : db(nullptr) {
+DatabaseManager::DatabaseManager(const std::string db_name, std::string password) : db(nullptr) {
     if (sqlite3_open(db_name.c_str(), &db) != SQLITE_OK) {
         throw std::runtime_error("Failed to open database: " + std::string(sqlite3_errmsg(db)));
     }
+
+    sqlite3_key(db, password.c_str(), password.length());
+    if (sqlite3_exec(db, "SELECT count(*) FROM sqlite_master;", NULL, NULL, NULL) == SQLITE_OK) {
+        std::cout << "Password is correct" << std::endl;
+    } else {
+        throw std::runtime_error("Password is incorrect");
+    }
+    
 }
 
 DatabaseManager::~DatabaseManager() {
@@ -30,6 +39,7 @@ bool DatabaseManager::init_db() {
         sqlite3_free(errMsg);
         return false;
     }
+
     return true;
 }
 

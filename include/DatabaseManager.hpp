@@ -12,7 +12,7 @@ struct Entry {
 
 class DatabaseManager {
 public:
-    DatabaseManager(const std::string db_name);
+    DatabaseManager(const std::string db_name, std::string password);
     ~DatabaseManager();
 
     bool init_db();
@@ -22,6 +22,7 @@ public:
     void delete_entry(const std::string& website);
 private: 
     sqlite3* db;
+    std::string db_path;
     void close_db();
 };
 

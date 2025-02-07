@@ -5,7 +5,6 @@
 
 #include "Util.hpp"
 #include "FileManager.hpp"
-#include "Auth.hpp"
 #include "DatabaseManager.hpp"
 
 
@@ -18,16 +17,9 @@ int main()
             throw std::runtime_error("libsodium couldn't be initialized");
         }
 
-        if (!std::filesystem::exists("data/keys/key.bin")) {
-            Auth::first_time_setup();
-        }
-
-        Auth::login_usr();
-
-        DatabaseManager dbManager("test.db");
-
+        DatabaseManager dbManager("data/test.db", Util::get_password("Enter password to encrypt db: "));
         dbManager.init_db();
-        
+
         std::cout << "\nRetrieving all credentials:" << std::endl;
         auto all_creds = dbManager.get_all_entries();;
         for (const auto& cred : all_creds) {
