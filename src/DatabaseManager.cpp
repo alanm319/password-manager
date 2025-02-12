@@ -5,25 +5,24 @@
 #include <iostream>
 #include <vector>
 
-DatabaseManager::DatabaseManager(const std::string db_name, std::string password) : db(nullptr) {
-    if (sqlite3_open(db_name.c_str(), &db) != SQLITE_OK) {
-        throw std::runtime_error("Failed to open database: " + std::string(sqlite3_errmsg(db)));
-    }
 
-    sqlite3_key(db, password.c_str(), password.length());
-    if (sqlite3_exec(db, "SELECT count(*) FROM sqlite_master;", NULL, NULL, NULL) == SQLITE_OK) {
-        std::cout << "Password is correct" << std::endl;
-    } else {
-        throw std::runtime_error("Password is incorrect");
-    }
-    
-}
+
+DatabaseManager::DatabaseManager(const std::string db_path) : db_path(db_path), db(nullptr) {}
 
 DatabaseManager::~DatabaseManager() {
     close_db();
 }
 
-bool DatabaseManager::init_db() {
+bool DatabaseManager::authenticate(const std::string& password) {
+    if (sqlite3_open(db_path.c_str(), &db) == SQLITE_OK) {
+        sqlite3_key(db, password.c_str(), password.length());
+        return sqlite3_exec(db, "SELECT count(*) FROM sqlite_master;", NULL, NULL, NULL) == SQLITE_OK;
+    }
+    return false;
+}
+
+bool DatabaseManager::init_db(const std::string& password) {
+    
     const std::string createTableQuery = R"(
         CREATE TABLE IF NOT EXISTS entries (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -33,13 +32,15 @@ bool DatabaseManager::init_db() {
         );
     )";
 
-    char* errMsg = nullptr;
-    if (sqlite3_exec(db, createTableQuery.c_str(), nullptr, nullptr, &errMsg) != SQLITE_OK) {
-        std::cerr << "SQL Error: " << errMsg << std::endl;
-        sqlite3_free(errMsg);
-        return false;
+    if (sqlite3_open(db_path.c_str(), &db) == SQLITE_OK) {
+        sqlite3_key(db, password.c_str(), password.length());
+        char* errMsg = nullptr;
+        if (sqlite3_exec(db, createTableQuery.c_str(), nullptr, nullptr, &errMsg) != SQLITE_OK) {
+            std::cerr << "SQL Error: " << errMsg << std::endl;
+            sqlite3_free(errMsg);
+            return false;
+        }
     }
-
     return true;
 }
 

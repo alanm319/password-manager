@@ -12,17 +12,18 @@ struct Entry {
 
 class DatabaseManager {
 public:
-    DatabaseManager(const std::string db_name, std::string password);
+    const std::string db_path;
+    DatabaseManager(const std::string db_path);
     ~DatabaseManager();
 
-    bool init_db();
+    bool init_db(const std::string& password);
     void add_entry(const std::string& website, const std::string& username, const std::string& password);
+    bool authenticate(const std::string& password);
     std::vector<Entry> get_entry(const std::string& website);
     std::vector<Entry> get_all_entries();
     void delete_entry(const std::string& website);
 private: 
     sqlite3* db;
-    std::string db_path;
     void close_db();
 };
 
