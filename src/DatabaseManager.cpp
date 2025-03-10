@@ -22,7 +22,8 @@ bool DatabaseManager::authenticate(const std::string& password) {
 }
 
 bool DatabaseManager::init_db(const std::string& password) {
-    
+    std::cout << "inside init_db\n";
+
     const std::string createTableQuery = R"(
         CREATE TABLE IF NOT EXISTS entries (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -33,6 +34,7 @@ bool DatabaseManager::init_db(const std::string& password) {
     )";
 
     if (sqlite3_open(db_path.c_str(), &db) == SQLITE_OK) {
+        std::cout << "opened connection to db\n";
         sqlite3_key(db, password.c_str(), password.length());
         char* errMsg = nullptr;
         if (sqlite3_exec(db, createTableQuery.c_str(), nullptr, nullptr, &errMsg) != SQLITE_OK) {
@@ -40,6 +42,7 @@ bool DatabaseManager::init_db(const std::string& password) {
             sqlite3_free(errMsg);
             return false;
         }
+        std::cout << "keyed db\n";
     }
     return true;
 }

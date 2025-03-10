@@ -12,7 +12,7 @@ int main(int argc, char** argv)
 {
     try
     {
-        DatabaseManager db("data/test.db");
+        DatabaseManager db("../data/test.db");
 
         CLI::App app{"Password manager"};
         argv = app.ensure_utf8(argv);   
