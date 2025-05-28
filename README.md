@@ -1,1 +1,1 @@
-A simple password manager using libsodium
+A lightweight CLI password manager using libsodium and SQLChipher
